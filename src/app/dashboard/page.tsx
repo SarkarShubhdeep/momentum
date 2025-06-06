@@ -7,6 +7,13 @@ import { User } from "@supabase/supabase-js";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import LayoutGrid from "@/components/LayoutGrid";
+import UserProfile from "./UserProfile";
+import { Clock, UserCircle } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import TodoCard from "./TodoCard";
 
 interface Profile {
     id: string;
@@ -22,11 +29,8 @@ export default function Dashboard() {
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
-    const [editing, setEditing] = useState(false);
-    const [fullName, setFullName] = useState("");
-    const [bio, setBio] = useState("");
-    const [saving, setSaving] = useState(false);
     const [isSmallScreen, setIsSmallScreen] = useState(false);
+    const [profileOpen, setProfileOpen] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -69,8 +73,6 @@ export default function Dashboard() {
                 }
 
                 setProfile(profile);
-                setFullName(profile.full_name || "");
-                setBio(profile.bio || "");
             } catch (error) {
                 console.error("Error loading user:", error);
                 router.push("/");
@@ -106,39 +108,6 @@ export default function Dashboard() {
         }
     };
 
-    const handleSaveProfile = async () => {
-        if (!user) return;
-
-        setSaving(true);
-        try {
-            const { error } = await supabase
-                .from("profiles")
-                .update({
-                    full_name: fullName,
-                    bio: bio,
-                })
-                .eq("id", user.id);
-
-            if (error) throw error;
-
-            setProfile((prev) =>
-                prev
-                    ? {
-                          ...prev,
-                          full_name: fullName,
-                          bio: bio,
-                      }
-                    : null
-            );
-
-            setEditing(false);
-        } catch (error) {
-            console.error("Error updating profile:", error);
-        } finally {
-            setSaving(false);
-        }
-    };
-
     if (loading) {
         return (
             <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
@@ -149,8 +118,19 @@ export default function Dashboard() {
 
     return (
         <>
-            <LayoutGrid theme="light" />
-            <div className="min-h-screen bg-[var(--background)]">
+            {/* <LayoutGrid theme="light" /> */}
+
+            {/* User Profile */}
+            <UserProfile
+                open={profileOpen}
+                onClose={() => setProfileOpen(false)}
+                profile={profile}
+                email={user?.email}
+                onProfileUpdate={setProfile}
+            />
+
+            {/* Dashboard */}
+            <div className="min-h-screen bg-[var(--background)] mx-5 md:mx-20 lg:mx-[120px] py-[80px]">
                 {isSmallScreen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80">
                         <div className="bg-white rounded-lg p-8 shadow-xl text-center max-w-xs mx-auto">
@@ -164,123 +144,90 @@ export default function Dashboard() {
                         </div>
                     </div>
                 )}
-                <nav className="border-b">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="flex justify-between h-16 items-center">
-                            <h1 className="text-xl font-semibold">Dashboard</h1>
-                            <button
-                                onClick={handleSignOut}
-                                className="px-4 py-2 text-sm font-medium text-white bg-black rounded-md hover:bg-black/90"
-                            >
-                                Sign Out
-                            </button>
-                        </div>
-                    </div>
-                </nav>
-
-                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <div className="bg-white rounded-lg shadow p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-semibold">
-                                Profile Information
-                            </h2>
-                            {!editing ? (
-                                <button
-                                    onClick={() => setEditing(true)}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-black rounded-md hover:bg-black/90"
-                                >
-                                    Edit Profile
-                                </button>
-                            ) : (
-                                <div className="space-x-2">
-                                    <button
-                                        onClick={() => {
-                                            setEditing(false);
-                                            setFullName(
-                                                profile?.full_name || ""
-                                            );
-                                            setBio(profile?.bio || "");
-                                        }}
-                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={handleSaveProfile}
-                                        disabled={saving}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-black rounded-md hover:bg-black/90 disabled:opacity-50"
-                                    >
-                                        {saving ? "Saving..." : "Save Changes"}
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="space-y-6">
-                            <div>
-                                <Label>Email</Label>
-                                <div className="mt-1 text-lg">
-                                    {user?.email}
-                                </div>
-                            </div>
-
-                            {editing ? (
-                                <>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="full-name">
-                                            Full Name
-                                        </Label>
-                                        <Input
-                                            id="full-name"
-                                            value={fullName}
-                                            onChange={(e) =>
-                                                setFullName(e.target.value)
-                                            }
-                                            placeholder="Enter your full name"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="bio">Bio</Label>
-                                        <Input
-                                            id="bio"
-                                            value={bio}
-                                            onChange={(e) =>
-                                                setBio(e.target.value)
-                                            }
-                                            placeholder="Tell us about yourself"
-                                        />
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div>
-                                        <Label>Full Name</Label>
-                                        <div className="mt-1 text-lg">
-                                            {profile?.full_name || "Not set"}
+                <div className="flex gap-4 h-full ">
+                    <div className="flex justify-between items-center min-h-full w-[400px] max-h-[calc(100vh-160px)] ">
+                        <div className="relative h-full w-full">
+                            <nav className="absolute top-0 left-0 right-0 border-b h-[120px] p-6 w-full bg-white/80 backdrop-blur-sm z-10">
+                                <div className="max-w-full mx-auto h-full">
+                                    <div className="flex justify-between h-full items-center">
+                                        <h1 className="text-xl font-semibold">
+                                            Tasks
+                                        </h1>
+                                        <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={handleSignOut}
+                                                className="px-4 py-2 text-sm font-medium text-white bg-black rounded-md hover:bg-black/90"
+                                            >
+                                                Sign Out
+                                            </button>
                                         </div>
                                     </div>
-                                    <div>
-                                        <Label>Bio</Label>
-                                        <div className="mt-1 text-gray-600">
-                                            {profile?.bio || "No bio yet"}
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-
-                            <div>
-                                <Label>Member Since</Label>
-                                <div className="mt-1 text-sm text-gray-500">
-                                    {profile?.created_at
-                                        ? new Date(
-                                              profile.created_at
-                                          ).toLocaleDateString()
-                                        : "N/A"}
                                 </div>
-                            </div>
+                            </nav>
+                            <ScrollArea className="h-full ">
+                                <div className="space-y-2 pt-[124px]">
+                                    {Array.from({ length: 20 }, (_, i) => ({
+                                        title: `Task ${i + 1}`,
+                                        description: `Description for task ${
+                                            i + 1
+                                        }`,
+                                        priority:
+                                            i % 3 === 0
+                                                ? "High"
+                                                : i % 3 === 1
+                                                ? "Medium"
+                                                : "Low",
+                                        time: "10:00 AM",
+                                    })).map((task, index) => (
+                                        <TodoCard
+                                            key={index}
+                                            id={`task-${index}`}
+                                            title={task.title}
+                                            description={task.description}
+                                            priority={
+                                                task.priority as
+                                                    | "High"
+                                                    | "Medium"
+                                                    | "Low"
+                                            }
+                                            time={task.time}
+                                        />
+                                    ))}
+                                </div>
+                            </ScrollArea>
                         </div>
                     </div>
-                </main>
+                    <div className="flex justify-between items-center h-full flex-1 min-h-full">
+                        <nav className="border-b h-[120px] p-6 w-full">
+                            <div className="max-w-full mx-auto h-full">
+                                <div className="flex justify-between h-full items-center ">
+                                    <h1 className="text-xl font-semibold">
+                                        Dashboard
+                                    </h1>
+                                    <div className="flex items-center gap-4">
+                                        <Avatar
+                                            onClick={() => setProfileOpen(true)}
+                                            className="cursor-pointer h-10 w-10 border border-black"
+                                        >
+                                            <AvatarImage
+                                                src={profile?.avatar_url || ""}
+                                            />
+                                            <AvatarFallback>
+                                                {profile?.full_name?.[0] || "U"}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <button
+                                            onClick={handleSignOut}
+                                            className="px-4 py-2 text-sm font-medium text-white bg-black rounded-md hover:bg-black/90"
+                                        >
+                                            Sign Out
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                </div>
             </div>
         </>
     );
