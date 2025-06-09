@@ -14,6 +14,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import TodoCard from "./TodoCard";
+import { Task } from "@/types/task";
+import { taskService } from "@/services/taskService";
+import { categoryService } from "@/services/categoryService";
+import { Category } from "@/types/category";
+import { toast, Toaster } from "sonner";
 
 interface Profile {
     id: string;
@@ -28,9 +33,11 @@ interface Profile {
 export default function Dashboard() {
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
+    const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSmallScreen, setIsSmallScreen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
+    const [categories, setCategories] = useState<Category[]>([]);
     const router = useRouter();
 
     useEffect(() => {
@@ -43,7 +50,7 @@ export default function Dashboard() {
     }, []);
 
     useEffect(() => {
-        const getUser = async () => {
+        const getUserAndData = async () => {
             try {
                 const {
                     data: { user },
@@ -73,6 +80,33 @@ export default function Dashboard() {
                 }
 
                 setProfile(profile);
+
+                // Fetch tasks and categories in parallel
+                const [userTasks, fetchedCategories] = await Promise.all([
+                    taskService.getTasks(user.id),
+                    categoryService.getCategories(),
+                ]);
+                setCategories(fetchedCategories);
+                // Map Supabase fields to expected fields and resolve category name
+                const mappedTasks = userTasks.map((task: any) => {
+                    const catId = task.cat_id || task.category_id;
+                    const categoryObj = fetchedCategories.find(
+                        (cat) => cat.cat_id === catId
+                    );
+                    return {
+                        ...task,
+                        title: task.task_title,
+                        description: task.task_desc,
+                        priority: task.priority || task.task_priority,
+                        time: task.task_time,
+                        task_date: task.task_date,
+                        task_only_time: task.task_only_time,
+                        category: categoryObj
+                            ? categoryObj.cat_name
+                            : "No Category",
+                    };
+                });
+                setTasks(mappedTasks);
             } catch (error) {
                 console.error("Error loading user:", error);
                 router.push("/");
@@ -81,7 +115,7 @@ export default function Dashboard() {
             }
         };
 
-        getUser();
+        getUserAndData();
 
         // Set up auth state listener
         const {
@@ -108,6 +142,93 @@ export default function Dashboard() {
         }
     };
 
+    const handleStatusChange = async (taskId: string, checked: boolean) => {
+        try {
+            await taskService.updateTaskStatus(taskId, checked);
+            setTasks((prevTasks) =>
+                prevTasks.map((task) =>
+                    task.id === taskId ? { ...task, status: checked } : task
+                )
+            );
+        } catch (error) {
+            console.error("Error updating task status:", error);
+        }
+    };
+
+    const handleTitleChange = async (taskId: string, newTitle: string) => {
+        try {
+            await taskService.updateTask(taskId, { task_title: newTitle });
+            setTasks((prevTasks) =>
+                prevTasks.map((task) =>
+                    task.id === taskId ? { ...task, title: newTitle } : task
+                )
+            );
+            toast(`${newTitle} task updated successfully`);
+        } catch (error) {
+            console.error("Error updating task title:", error);
+        }
+    };
+
+    const handleDescriptionChange = async (
+        taskId: string,
+        newDescription: string
+    ) => {
+        try {
+            await taskService.updateTask(taskId, {
+                task_desc: newDescription,
+            } as any);
+            setTasks((prevTasks) =>
+                prevTasks.map((task) =>
+                    task.id === taskId
+                        ? { ...task, description: newDescription }
+                        : task
+                )
+            );
+            // Use the updated title for the toast message
+            const updatedTask = tasks.find((task) => task.id === taskId);
+            const title = updatedTask ? updatedTask.title : "Task";
+            toast(`${title} task updated successfully`);
+        } catch (error) {
+            console.error("Error updating task description:", error);
+        }
+    };
+
+    const handleDateChange = async (taskId: string, newDate: string) => {
+        try {
+            await taskService.updateTask(taskId, { task_date: newDate } as any);
+            setTasks((prevTasks) =>
+                prevTasks.map((task) =>
+                    task.id === taskId ? { ...task, task_date: newDate } : task
+                )
+            );
+            const updatedTask = tasks.find((task) => task.id === taskId);
+            const title = updatedTask ? updatedTask.title : "Task";
+            toast(`${title} task updated successfully`);
+        } catch (error) {
+            console.error("Error updating task date:", error);
+        }
+    };
+
+    const handleTimeChange = async (taskId: string, newTime: string) => {
+        try {
+            await taskService.updateTask(taskId, {
+                task_only_time: newTime,
+            } as any);
+            setTasks((prevTasks) =>
+                prevTasks.map((task) =>
+                    task.id === taskId
+                        ? { ...task, task_only_time: newTime }
+                        : task
+                )
+            );
+            const updatedTask = tasks.find((task) => task.id === taskId);
+            const title = updatedTask ? updatedTask.title : "Task";
+            toast(`${title} task updated successfully`);
+        } catch (error) {
+            console.error("Error updating task time:", error);
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
@@ -118,6 +239,7 @@ export default function Dashboard() {
 
     return (
         <>
+            <Toaster position="bottom-right" />
             {/* <LayoutGrid theme="light" /> */}
 
             {/* User Profile */}
@@ -147,7 +269,7 @@ export default function Dashboard() {
                 <div className="flex gap-4 h-full ">
                     <div className="flex justify-between items-center min-h-full w-[400px] max-h-[calc(100vh-160px)] ">
                         <div className="relative h-full w-full">
-                            <nav className="absolute top-0 left-0 right-0 border-b h-[120px] p-6 w-full bg-white/80 backdrop-blur-sm z-10">
+                            <nav className="absolute top-0 left-0 right-0 border-b-2 border-black h-[120px] p-6 w-full bg-white/80 backdrop-blur-sm z-10 ">
                                 <div className="max-w-full mx-auto h-full">
                                     <div className="flex justify-between h-full items-center">
                                         <h1 className="text-xl font-semibold">
@@ -166,31 +288,53 @@ export default function Dashboard() {
                             </nav>
                             <ScrollArea className="h-full ">
                                 <div className="space-y-2 pt-[124px]">
-                                    {Array.from({ length: 20 }, (_, i) => ({
-                                        title: `Task ${i + 1}`,
-                                        description: `Description for task ${
-                                            i + 1
-                                        }`,
-                                        priority:
-                                            i % 3 === 0
-                                                ? "High"
-                                                : i % 3 === 1
-                                                ? "Medium"
-                                                : "Low",
-                                        time: "10:00 AM",
-                                    })).map((task, index) => (
+                                    {tasks.map((task) => (
                                         <TodoCard
-                                            key={index}
-                                            id={`task-${index}`}
-                                            title={task.title}
-                                            description={task.description}
-                                            priority={
-                                                task.priority as
-                                                    | "High"
-                                                    | "Medium"
-                                                    | "Low"
+                                            key={task.id}
+                                            id={task.id}
+                                            title={task.title || "No Title"}
+                                            description={
+                                                task.description ||
+                                                "No Description"
                                             }
+                                            priority={task.priority}
                                             time={task.time}
+                                            task_date={task.task_date}
+                                            task_only_time={task.task_only_time}
+                                            category={task.category}
+                                            status={task.status}
+                                            onStatusChange={(checked) =>
+                                                handleStatusChange(
+                                                    task.id,
+                                                    checked as boolean
+                                                )
+                                            }
+                                            onTitleChange={(newTitle) =>
+                                                handleTitleChange(
+                                                    task.id,
+                                                    newTitle
+                                                )
+                                            }
+                                            onDescriptionChange={(
+                                                newDescription
+                                            ) =>
+                                                handleDescriptionChange(
+                                                    task.id,
+                                                    newDescription
+                                                )
+                                            }
+                                            onDateChange={(newDate) =>
+                                                handleDateChange(
+                                                    task.id,
+                                                    newDate
+                                                )
+                                            }
+                                            onTimeChange={(newTime) =>
+                                                handleTimeChange(
+                                                    task.id,
+                                                    newTime
+                                                )
+                                            }
                                         />
                                     ))}
                                 </div>

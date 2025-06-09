@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { EyeIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
     const [isLogin, setIsLogin] = useState(true);
@@ -18,7 +20,8 @@ export default function Home() {
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
     const [isSmallScreen, setIsSmallScreen] = useState(false);
-
+    const [showLoginPassword, setShowLoginPassword] = useState(false);
+    const [showSignupPassword, setShowSignupPassword] = useState(false);
     useEffect(() => {
         const checkScreen = () => {
             setIsSmallScreen(window.innerWidth < 1024);
@@ -31,6 +34,13 @@ export default function Home() {
     const toggleForm = () => {
         setIsLogin(!isLogin);
         setError(null);
+        setEmail("");
+        setPassword("");
+        setConfirmPassword("");
+        setFullName("");
+        setBio("");
+        setShowLoginPassword(false);
+        setShowSignupPassword(false);
     };
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -157,15 +167,38 @@ export default function Home() {
 
                                 <div className="space-y-2">
                                     <Label htmlFor="password">Password</Label>
-                                    <Input
-                                        id="password"
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) =>
-                                            setPassword(e.target.value)
-                                        }
-                                        required
-                                    />
+                                    <div className="flex gap-1">
+                                        <Input
+                                            id="password"
+                                            type={
+                                                showLoginPassword
+                                                    ? "text"
+                                                    : "password"
+                                            }
+                                            value={password}
+                                            onChange={(e) =>
+                                                setPassword(e.target.value)
+                                            }
+                                            required
+                                        />
+                                        <Button
+                                            variant={
+                                                showLoginPassword
+                                                    ? "default"
+                                                    : "outline"
+                                            }
+                                            className="shadow-none"
+                                            size="icon"
+                                            onClick={() => {
+                                                setShowLoginPassword(
+                                                    !showLoginPassword
+                                                );
+                                            }}
+                                            type="button"
+                                        >
+                                            <EyeIcon className="w-4 h-4" />
+                                        </Button>
+                                    </div>
                                 </div>
 
                                 <button
@@ -237,29 +270,60 @@ export default function Home() {
                                     <Label htmlFor="signup-password">
                                         Password
                                     </Label>
-                                    <Input
-                                        id="signup-password"
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) =>
-                                            setPassword(e.target.value)
-                                        }
-                                        required
-                                    />
+                                    <div className="flex gap-1">
+                                        <Input
+                                            id="signup-password"
+                                            type={
+                                                showSignupPassword
+                                                    ? "text"
+                                                    : "password"
+                                            }
+                                            value={password}
+                                            onChange={(e) =>
+                                                setPassword(e.target.value)
+                                            }
+                                            required
+                                        />
+                                        <Button
+                                            variant={
+                                                showSignupPassword
+                                                    ? "default"
+                                                    : "outline"
+                                            }
+                                            className="shadow-none"
+                                            size="icon"
+                                            onClick={() => {
+                                                setShowSignupPassword(
+                                                    !showSignupPassword
+                                                );
+                                            }}
+                                            type="button"
+                                        >
+                                            <EyeIcon className="w-4 h-4" />
+                                        </Button>
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="confirm-password">
                                         Confirm Password
                                     </Label>
-                                    <Input
-                                        id="confirm-password"
-                                        type="password"
-                                        value={confirmPassword}
-                                        onChange={(e) =>
-                                            setConfirmPassword(e.target.value)
-                                        }
-                                        required
-                                    />
+                                    <div className="flex">
+                                        <Input
+                                            id="confirm-password"
+                                            type={
+                                                showSignupPassword
+                                                    ? "text"
+                                                    : "password"
+                                            }
+                                            value={confirmPassword}
+                                            onChange={(e) =>
+                                                setConfirmPassword(
+                                                    e.target.value
+                                                )
+                                            }
+                                            required
+                                        />
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="bio">Bio</Label>
@@ -271,13 +335,13 @@ export default function Home() {
                                         onChange={(e) => setBio(e.target.value)}
                                     />
                                 </div>
-                                <button
-                                    className="w-full rounded-md bg-black px-8 py-2 text-sm font-medium text-white hover:bg-black/90 disabled:opacity-50"
+                                <Button
                                     type="submit"
                                     disabled={loading}
+                                    className="w-full"
                                 >
                                     {loading ? "Loading..." : "Sign Up"}
-                                </button>
+                                </Button>
                             </form>
                             <p className="text-center text-sm text-muted-foreground">
                                 Already have an account?{" "}
