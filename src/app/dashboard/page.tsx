@@ -8,17 +8,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import LayoutGrid from "@/components/LayoutGrid";
 import UserProfile from "./UserProfile";
-import { Clock, UserCircle } from "lucide-react";
+import {
+    Clock,
+    Filter,
+    FilterX,
+    LogOut,
+    SortAsc,
+    UserCircle,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import TodoCard from "./TodoCard";
-import { Task } from "@/types/task";
+import { Task, TaskPriority } from "@/types/task";
 import { taskService } from "@/services/taskService";
 import { categoryService } from "@/services/categoryService";
 import { Category } from "@/types/category";
 import { toast, Toaster } from "sonner";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 interface Profile {
     id: string;
@@ -93,11 +103,20 @@ export default function Dashboard() {
                     const categoryObj = fetchedCategories.find(
                         (cat) => cat.cat_id === catId
                     );
+                    let mappedPriority: TaskPriority = "None";
+                    if (
+                        task.task_priority === "High" ||
+                        task.task_priority === "Medium" ||
+                        task.task_priority === "Low" ||
+                        task.task_priority === "None"
+                    ) {
+                        mappedPriority = task.task_priority;
+                    }
                     return {
                         ...task,
                         title: task.task_title,
                         description: task.task_desc,
-                        priority: task.priority || task.task_priority,
+                        priority: mappedPriority,
                         time: task.task_time,
                         task_date: task.task_date,
                         task_only_time: task.task_only_time,
@@ -229,6 +248,40 @@ export default function Dashboard() {
         }
     };
 
+    const handlePriorityChange = async (
+        taskId: string,
+        newPriority: string
+    ) => {
+        // Accept 'None' as a value for clearing priority
+        const validPriorities: TaskPriority[] = [
+            "High",
+            "Medium",
+            "Low",
+            "None",
+        ];
+        const priorityValue = validPriorities.includes(
+            newPriority as TaskPriority
+        )
+            ? (newPriority as TaskPriority)
+            : "None";
+        try {
+            // Send to backend as task_priority, use 'None' to clear
+            await taskService.updateTask(taskId, {
+                task_priority: priorityValue,
+            });
+            setTasks((prevTasks) =>
+                prevTasks.map((task) =>
+                    task.id === taskId
+                        ? { ...task, priority: priorityValue }
+                        : task
+                )
+            );
+            toast("Priority updated!");
+        } catch (error) {
+            console.error("Error updating task priority:", error);
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
@@ -252,7 +305,10 @@ export default function Dashboard() {
             />
 
             {/* Dashboard */}
-            <div className="min-h-screen bg-[var(--background)] mx-5 md:mx-20 lg:mx-[120px] py-[80px]">
+            <div className="min-h-screen bg-[var(--background)] mx-5 md:mx-20 lg:mx-[120px] py-[20px] ">
+                <div className="fixed top-4 right-4 z-50">
+                    <ThemeToggle />
+                </div>
                 {isSmallScreen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80">
                         <div className="bg-white rounded-lg p-8 shadow-xl text-center max-w-xs mx-auto">
@@ -266,28 +322,45 @@ export default function Dashboard() {
                         </div>
                     </div>
                 )}
-                <div className="flex gap-4 h-full ">
-                    <div className="flex justify-between items-center min-h-full w-[400px] max-h-[calc(100vh-160px)] ">
+                <div className="flex gap-4 h-full">
+                    <div className="flex justify-between items-center min-h-full w-[400px] max-h-[calc(100vh-40px)] 0 border-1 border-neutral-400 rounded-xl overflow-hidden">
                         <div className="relative h-full w-full">
-                            <nav className="absolute top-0 left-0 right-0 border-b-2 border-black h-[120px] p-6 w-full bg-white/80 backdrop-blur-sm z-10 ">
+                            <nav className="absolute top-0 left-0 right-0 border-b-1 border-neutral-400 h-[120px] ps-6 pe-2 w-full bg-white/20 backdrop-blur-sm z-10 ">
                                 <div className="max-w-full mx-auto h-full">
                                     <div className="flex justify-between h-full items-center">
-                                        <h1 className="text-xl font-semibold">
+                                        <h1 className="text-4xl font-semibold">
                                             Tasks
                                         </h1>
-                                        <div className="flex items-center gap-4">
-                                            <button
-                                                onClick={handleSignOut}
-                                                className="px-4 py-2 text-sm font-medium text-white bg-black rounded-md hover:bg-black/90"
+                                        <div className="flex items-center gap-1">
+                                            <Button
+                                                variant="outline"
+                                                className="bg-white/20 shadow-none py-4 pe-4 ps-5 rounded-full h-14 uppercase border-[1.5px] border-transparent hover:border-neutral-400"
                                             >
-                                                Sign Out
-                                            </button>
+                                                Sort
+                                                <Image
+                                                    src="/icons/sort.svg"
+                                                    alt="menu-icon"
+                                                    width={24}
+                                                    height={24}
+                                                />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                className="shadow-none rounded-full h-14 w-14 p-0 border-[1.5px] border-transparent hover:border-neutral-400"
+                                            >
+                                                <Image
+                                                    src="/icons/menu.svg"
+                                                    alt="menu-icon"
+                                                    width={32}
+                                                    height={32}
+                                                />
+                                            </Button>
                                         </div>
                                     </div>
                                 </div>
                             </nav>
                             <ScrollArea className="h-full ">
-                                <div className="space-y-2 pt-[124px]">
+                                <div className="space-y-2 py-[124px]">
                                     {tasks.map((task) => (
                                         <TodoCard
                                             key={task.id}
@@ -333,6 +406,12 @@ export default function Dashboard() {
                                                 handleTimeChange(
                                                     task.id,
                                                     newTime
+                                                )
+                                            }
+                                            onPriorityChange={(newPriority) =>
+                                                handlePriorityChange(
+                                                    task.id,
+                                                    newPriority
                                                 )
                                             }
                                         />

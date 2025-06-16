@@ -34,7 +34,12 @@ export const taskService = {
         return data;
     },
 
-    async updateTask(taskId: string, updates: Partial<Task>): Promise<Task> {
+    async updateTask(
+        taskId: string,
+        updates: Partial<Task> & {
+            task_priority?: "High" | "Medium" | "Low" | "None" | null;
+        }
+    ): Promise<Task> {
         const { data, error } = await supabase
             .from("tasks")
             .update(updates)

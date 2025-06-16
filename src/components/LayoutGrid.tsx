@@ -30,14 +30,14 @@ export default function LayoutGrid({ theme = "dark" }: LayoutGridProps) {
                     ></div>
                     {/* Top line */}
                     <div
-                        className={`absolute top-0 left-0 right-0 h-[1px] ${gridColor} mt-[80px]`}
+                        className={`absolute top-0 left-0 right-0 h-[1px] ${gridColor} mt-[20px]`}
                     ></div>
                     <div
                         className={`absolute top-0 left-0 right-0 h-[1px] ${gridColor} mt-[200px]`}
                     ></div>
                     {/* Bottom line */}
                     <div
-                        className={`absolute bottom-0 left-0 right-0 h-[1px] ${gridColor} mb-[80px]`}
+                        className={`absolute bottom-0 left-0 right-0 h-[1px] ${gridColor} mb-[20px]`}
                     ></div>
                 </div>
             </div>

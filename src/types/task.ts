@@ -2,7 +2,7 @@ export interface Task {
     id: string;
     title: string;
     description: string;
-    priority: "High" | "Medium" | "Low";
+    priority?: "High" | "Medium" | "Low" | "None";
     time: string;
     user_id: string;
     completed: boolean;
@@ -16,4 +16,4 @@ export interface Task {
     task_only_time?: string;
 }
 
-export type TaskPriority = "High" | "Medium" | "Low";
+export type TaskPriority = "High" | "Medium" | "Low" | "None";

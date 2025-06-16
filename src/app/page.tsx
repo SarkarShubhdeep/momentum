@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { EyeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default function Home() {
     const [isLogin, setIsLogin] = useState(true);
@@ -127,6 +128,9 @@ export default function Home() {
                 </div>
             )}
             <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+                <div className="fixed top-4 right-4 z-50">
+                    <ThemeToggle />
+                </div>
                 {/* <LayoutGrid theme="light" /> */}
 
                 <div className="flex flex-col items-center justify-center gap-4 py-8 h-screen min-w-[400px] border-x ">

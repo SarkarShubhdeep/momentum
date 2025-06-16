@@ -15,6 +15,21 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import {
+    Menubar,
+    MenubarMenu,
+    MenubarTrigger,
+    MenubarContent,
+    MenubarRadioGroup,
+    MenubarRadioItem,
+} from "@/components/ui/menubar";
+import {
+    DropdownMenu,
+    DropdownMenuTrigger,
+    DropdownMenuContent,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu";
 
 function formatTaskTime(timeStr: string) {
     if (!timeStr) return "";
@@ -90,7 +105,7 @@ function parse12HourInput(input: string): string | null {
 interface TodoCardProps {
     title: string;
     description: string;
-    priority: "High" | "Medium" | "Low";
+    priority?: "High" | "Medium" | "Low" | "None";
     time: string;
     id: string;
     category?: string;
@@ -102,6 +117,7 @@ interface TodoCardProps {
     task_only_time?: string;
     onDateChange?: (newDate: string) => void;
     onTimeChange?: (newTime: string) => void;
+    onPriorityChange?: (newPriority: string) => void;
 }
 
 const TodoCard: React.FC<TodoCardProps> = ({
@@ -119,6 +135,7 @@ const TodoCard: React.FC<TodoCardProps> = ({
     task_only_time,
     onDateChange,
     onTimeChange,
+    onPriorityChange,
 }) => {
     const [editingTitle, setEditingTitle] = useState(false);
     const [titleValue, setTitleValue] = useState(title);
@@ -243,27 +260,29 @@ const TodoCard: React.FC<TodoCardProps> = ({
     }
     return (
         <div
-            className={`flex gap-3 cursor-pointer p-3 bg-white transition-border border-l-4 border-transparent hover:border-blue-200 mb-1 ${
+            className={`flex gap-3 cursor-pointer p-3 bg-card text-card-foreground transition-all border-l-4 border-transparent hover:border-primary/20 mb-1 rounded-md ${
                 status ? "opacity-50" : "opacity-100"
             }`}
         >
             <div className="flex pt-1.5" onClick={(e) => e.stopPropagation()}>
                 <Checkbox
                     id={id}
-                    className="border-gray-300 shadow-none"
+                    className="border-input dark:border-input/50"
                     checked={status}
                     onCheckedChange={onStatusChange}
                 />
             </div>
             <div className="flex-1">
                 <div className="">
-                    <div className="flex justify-between items-start relative ">
+                    <div className="flex justify-between items-start relative">
                         <div className="relative w-full">
                             <div className="">
                                 <Textarea
                                     ref={inputRef}
-                                    className={`font-medium text-lg w-full resize-none bg-transparent p-0 pr-20 h-auto mb-2 transition-colors min-h-0 border-none focus:outline-none focus:ring-0 ${
-                                        status ? "line-through" : ""
+                                    className={`font-medium text-lg w-full resize-none bg-transparent p-0 pr-20 h-auto mb-2 transition-colors min-h-0 border-none focus:outline-none focus:ring-0 text-card-foreground ${
+                                        status
+                                            ? "line-through text-muted-foreground"
+                                            : ""
                                     }`}
                                     value={titleValue}
                                     onChange={(e) => {
@@ -295,14 +314,16 @@ const TodoCard: React.FC<TodoCardProps> = ({
                                 <span
                                     className={`block text-sm space-x-2 ${timeColor}`}
                                 >
-                                    <span
-                                        className="cursor-pointer underline decoration-dotted"
-                                        onClick={() => setShowDatePicker(true)}
+                                    <Popover
+                                        open={showDatePicker}
+                                        onOpenChange={setShowDatePicker}
                                     >
-                                        {displayDate}
-                                    </span>
-                                    {showDatePicker && (
-                                        <div className="absolute z-50 mt-2">
+                                        <PopoverTrigger asChild>
+                                            <span className="cursor-pointer underline decoration-dotted hover:text-primary transition-colors">
+                                                {displayDate}
+                                            </span>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-fit p-0 bg-card text-card-foreground border border-border shadow-lg rounded-md">
                                             <Calendar
                                                 mode="single"
                                                 selected={
@@ -344,18 +365,19 @@ const TodoCard: React.FC<TodoCardProps> = ({
                                                 }}
                                                 initialFocus
                                             />
-                                        </div>
-                                    )}
-                                    <span
-                                        className="cursor-pointer underline decoration-dotted"
-                                        onClick={() => setEditingTime(true)}
-                                    >
-                                        {format12HourTime(displayTime)}
-                                    </span>
-                                    {editingTime && (
+                                        </PopoverContent>
+                                    </Popover>
+                                    {!editingTime ? (
+                                        <span
+                                            className="cursor-pointer underline decoration-dotted hover:text-primary transition-colors"
+                                            onClick={() => setEditingTime(true)}
+                                        >
+                                            {format12HourTime(displayTime)}
+                                        </span>
+                                    ) : (
                                         <Input
                                             type="text"
-                                            className="w-28 inline-block ml-2"
+                                            className="w-28 inline-block ml-2 bg-background "
                                             value={timeInputValue}
                                             placeholder="hh:mm AM/PM"
                                             onChange={(e) =>
@@ -397,7 +419,7 @@ const TodoCard: React.FC<TodoCardProps> = ({
                     </div>
                     <Textarea
                         ref={descriptionRef}
-                        className="text-sm text-gray-600 mt-1 w-full resize-none bg-transparent p-0 border-none focus:outline-none focus:ring-0"
+                        className="text-sm text-muted-foreground mt-1 w-full resize-none bg-transparent p-0 border-none focus:outline-none focus:ring-0"
                         value={descriptionValue}
                         onChange={(e) => {
                             setDescriptionValue(e.target.value);
@@ -419,19 +441,61 @@ const TodoCard: React.FC<TodoCardProps> = ({
                         rows={1}
                     />
                     <div className="flex gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Badge
+                                    className="mt-2 rounded-small cursor-pointer font-mono"
+                                    variant={
+                                        priority === "High"
+                                            ? "high"
+                                            : priority === "Medium"
+                                            ? "medium"
+                                            : priority === "Low"
+                                            ? "low"
+                                            : "none"
+                                    }
+                                >
+                                    {priority || "None"}
+                                </Badge>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuRadioGroup
+                                    value={priority || "None"}
+                                    onValueChange={(value) => {
+                                        if (onPriorityChange)
+                                            onPriorityChange(
+                                                value === "None" ? "" : value
+                                            );
+                                    }}
+                                >
+                                    <DropdownMenuRadioItem
+                                        value="High"
+                                        className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 focus:text-red-500"
+                                    >
+                                        High
+                                    </DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem
+                                        value="Medium"
+                                        className="text-yellow-700 hover:bg-yellow-500/10 focus:bg-yellow-500/10 focus:text-yellow-700"
+                                    >
+                                        Medium
+                                    </DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem
+                                        value="Low"
+                                        className="text-green-700 hover:bg-green-500/10 focus:bg-green-500/10 focus:text-green-700"
+                                    >
+                                        Low
+                                    </DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="None">
+                                        None
+                                    </DropdownMenuRadioItem>
+                                </DropdownMenuRadioGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Badge
-                            className="mt-2"
-                            variant={
-                                priority === "High"
-                                    ? "destructive"
-                                    : priority === "Medium"
-                                    ? "secondary"
-                                    : "default"
-                            }
+                            className="mt-2 rounded-full font-mono"
+                            variant="outline"
                         >
-                            {priority}
-                        </Badge>
-                        <Badge className="mt-2 rounded-full" variant="outline">
                             {category || "No Category"}
                         </Badge>
                     </div>
