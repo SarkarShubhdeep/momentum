@@ -7,6 +7,7 @@ import {
     ContextMenuTrigger,
     ContextMenuContent,
     ContextMenuItem,
+    ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import {
     Popover,
@@ -27,9 +28,30 @@ import {
     DropdownMenu,
     DropdownMenuTrigger,
     DropdownMenuContent,
-    DropdownMenuRadioGroup,
-    DropdownMenuRadioItem,
+    DropdownMenuItem,
+    DropdownMenuSub,
+    DropdownMenuSubTrigger,
+    DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
+import {
+    MoreHorizontal,
+    Edit,
+    Trash2,
+    Copy,
+    Archive,
+    Flag,
+    FolderOpen,
+    AlertTriangle,
+} from "lucide-react";
+import {
+    Dialog,
+    DialogTrigger,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 function formatTaskTime(timeStr: string) {
     if (!timeStr) return "";
@@ -110,6 +132,7 @@ interface TodoCardProps {
     id: string;
     category?: string;
     status?: boolean;
+    categories?: Array<{ cat_id: string; cat_name: string }>;
     onStatusChange?: (checked: boolean) => void;
     onTitleChange?: (newTitle: string) => void;
     onDescriptionChange?: (newDescription: string) => void;
@@ -118,6 +141,10 @@ interface TodoCardProps {
     onDateChange?: (newDate: string) => void;
     onTimeChange?: (newTime: string) => void;
     onPriorityChange?: (newPriority: string) => void;
+    onCategoryChange?: (newCategory: string) => void;
+    onDuplicate?: (taskId: string) => void;
+    onArchive?: (taskId: string) => void;
+    onDelete?: (taskId: string) => void;
 }
 
 const TodoCard: React.FC<TodoCardProps> = ({
@@ -136,6 +163,11 @@ const TodoCard: React.FC<TodoCardProps> = ({
     onDateChange,
     onTimeChange,
     onPriorityChange,
+    onCategoryChange,
+    onDuplicate,
+    onArchive,
+    onDelete,
+    categories,
 }) => {
     const [editingTitle, setEditingTitle] = useState(false);
     const [titleValue, setTitleValue] = useState(title);
@@ -150,6 +182,14 @@ const TodoCard: React.FC<TodoCardProps> = ({
     const [timeInputValue, setTimeInputValue] = useState(
         format12HourTime(task_only_time ? task_only_time.slice(0, 5) : "")
     );
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editTitle, setEditTitle] = useState(title);
+    const [editDescription, setEditDescription] = useState(description);
+    const [editCategory, setEditCategory] = useState<string | undefined>(
+        categories?.find((cat) => cat.cat_name === category)?.cat_id ||
+            undefined
+    );
+    const [editPriority, setEditPriority] = useState(priority || "None");
 
     // Focus input when editing starts
     React.useEffect(() => {
@@ -258,250 +298,436 @@ const TodoCard: React.FC<TodoCardProps> = ({
         const now = new Date();
         timeColor = date > now ? "text-blue-600" : "text-red-600";
     }
+
+    const handleEditSave = () => {
+        if (editTitle !== title && onTitleChange) onTitleChange(editTitle);
+        if (editDescription !== description && onDescriptionChange)
+            onDescriptionChange(editDescription);
+        if (
+            editCategory !==
+                categories?.find((cat) => cat.cat_name === category)?.cat_id &&
+            onCategoryChange
+        )
+            onCategoryChange(editCategory || "");
+        if (editPriority !== priority && onPriorityChange)
+            onPriorityChange(editPriority);
+        setEditDialogOpen(false);
+    };
+
     return (
-        <div
-            className={`flex gap-3 cursor-pointer p-3 bg-card text-card-foreground transition-all border-l-4 border-transparent hover:border-primary/20 mb-1 rounded-md ${
-                status ? "opacity-50" : "opacity-100"
-            }`}
-        >
-            <div className="flex pt-1.5" onClick={(e) => e.stopPropagation()}>
-                <Checkbox
-                    id={id}
-                    className="border-input dark:border-input/50"
-                    checked={status}
-                    onCheckedChange={onStatusChange}
-                />
-            </div>
-            <div className="flex-1">
-                <div className="">
-                    <div className="flex justify-between items-start relative">
-                        <div className="relative w-full">
+        <>
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Task</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-3">
+                        <Input
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            placeholder="Title"
+                        />
+                        <Textarea
+                            value={editDescription}
+                            onChange={(e) => setEditDescription(e.target.value)}
+                            placeholder="Description"
+                        />
+                        <div className="flex gap-2">
+                            <select
+                                className="border rounded px-2 py-1"
+                                value={editCategory || ""}
+                                onChange={(e) =>
+                                    setEditCategory(e.target.value || undefined)
+                                }
+                            >
+                                <option value="">No Category</option>
+                                {categories?.map((cat) => (
+                                    <option key={cat.cat_id} value={cat.cat_id}>
+                                        {cat.cat_name}
+                                    </option>
+                                ))}
+                            </select>
+                            <select
+                                className="border rounded px-2 py-1"
+                                value={editPriority}
+                                onChange={(e) =>
+                                    setEditPriority(e.target.value as any)
+                                }
+                            >
+                                <option value="None">None</option>
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                            </select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setEditDialogOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button onClick={handleEditSave}>Save</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <ContextMenu>
+                <ContextMenuTrigger>
+                    <div
+                        className={`flex gap-3  p-3 bg-card text-card-foreground transition-all border-l-4 border-transparent hover:border-primary/20 mb-1 rounded-md ${
+                            status ? "opacity-50" : "opacity-100"
+                        }`}
+                    >
+                        <div
+                            className="flex pt-1"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <Checkbox
+                                id={id}
+                                className="border-input dark:border-input/50"
+                                checked={status}
+                                onCheckedChange={onStatusChange}
+                            />
+                        </div>
+                        <div className="flex-1">
                             <div className="">
-                                <Textarea
-                                    ref={inputRef}
-                                    className={`font-medium text-lg w-full resize-none bg-transparent p-0 pr-20 h-auto mb-2 transition-colors min-h-0 border-none focus:outline-none focus:ring-0 text-card-foreground ${
-                                        status
-                                            ? "line-through text-muted-foreground"
-                                            : ""
-                                    }`}
-                                    value={titleValue}
-                                    onChange={(e) => {
-                                        setTitleValue(e.target.value);
-                                        if (inputRef.current) {
-                                            inputRef.current.style.height =
-                                                "auto";
-                                            inputRef.current.style.height =
-                                                inputRef.current.scrollHeight +
-                                                "px";
-                                        }
-                                    }}
-                                    onBlur={(e) => {
-                                        setIsTitleFocused(false);
-                                        handleTitleBlur();
-                                    }}
-                                    onFocus={() => setIsTitleFocused(true)}
-                                    onKeyDown={handleTitleKeyDown}
-                                    style={{
-                                        width: "100%",
-                                        overflow: "hidden",
-                                        fontSize: "1.125rem",
-                                        lineHeight: "1.5",
-                                        minHeight: 0,
-                                    }}
-                                    spellCheck={false}
-                                    rows={1}
-                                />
-                                <span
-                                    className={`block text-sm space-x-2 ${timeColor}`}
-                                >
-                                    <Popover
-                                        open={showDatePicker}
-                                        onOpenChange={setShowDatePicker}
-                                    >
-                                        <PopoverTrigger asChild>
-                                            <span className="cursor-pointer underline decoration-dotted hover:text-primary transition-colors">
-                                                {displayDate}
-                                            </span>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-fit p-0 bg-card text-card-foreground border border-border shadow-lg rounded-md">
-                                            <Calendar
-                                                mode="single"
-                                                selected={
-                                                    task_date
-                                                        ? (() => {
-                                                              const [
-                                                                  year,
-                                                                  month,
-                                                                  day,
-                                                              ] =
-                                                                  task_date.split(
-                                                                      "-"
-                                                                  );
-                                                              return new Date(
-                                                                  Number(year),
-                                                                  Number(
-                                                                      month
-                                                                  ) - 1,
-                                                                  Number(day)
-                                                              );
-                                                          })()
-                                                        : undefined
-                                                }
-                                                onSelect={(date) => {
-                                                    setShowDatePicker(false);
-                                                    if (date && onDateChange) {
-                                                        const year =
-                                                            date.getFullYear();
-                                                        const month = String(
-                                                            date.getMonth() + 1
-                                                        ).padStart(2, "0");
-                                                        const day = String(
-                                                            date.getDate()
-                                                        ).padStart(2, "0");
-                                                        onDateChange(
-                                                            `${year}-${month}-${day}`
-                                                        );
+                                <div className="flex justify-between items-start relative">
+                                    <div className="relative w-full">
+                                        <div className="">
+                                            <Textarea
+                                                ref={inputRef}
+                                                className="w-full resize-none bg-transparent p-0 border-none focus:outline-none focus:ring-0"
+                                                value={titleValue}
+                                                onChange={(e) => {
+                                                    setTitleValue(
+                                                        e.target.value
+                                                    );
+                                                    if (inputRef.current) {
+                                                        inputRef.current.style.height =
+                                                            "auto";
+                                                        inputRef.current.style.height =
+                                                            inputRef.current
+                                                                .scrollHeight +
+                                                            "px";
                                                     }
                                                 }}
-                                                initialFocus
+                                                onBlur={handleTitleBlur}
+                                                onFocus={() =>
+                                                    setIsTitleFocused(true)
+                                                }
+                                                onKeyDown={handleTitleKeyDown}
+                                                style={{
+                                                    width: "100%",
+                                                    overflow: "hidden",
+                                                    minHeight: 0,
+                                                    fontSize: "1rem",
+                                                }}
+                                                spellCheck={false}
+                                                rows={1}
                                             />
-                                        </PopoverContent>
-                                    </Popover>
-                                    {!editingTime ? (
-                                        <span
-                                            className="cursor-pointer underline decoration-dotted hover:text-primary transition-colors"
-                                            onClick={() => setEditingTime(true)}
-                                        >
-                                            {format12HourTime(displayTime)}
-                                        </span>
-                                    ) : (
-                                        <Input
-                                            type="text"
-                                            className="w-28 inline-block ml-2 bg-background "
-                                            value={timeInputValue}
-                                            placeholder="hh:mm AM/PM"
-                                            onChange={(e) =>
-                                                setTimeInputValue(
-                                                    e.target.value
-                                                )
+                                            {(task_date || task_only_time) && (
+                                                <span
+                                                    className={`block text-sm space-x-2 ${timeColor}`}
+                                                >
+                                                    <Popover
+                                                        open={showDatePicker}
+                                                        onOpenChange={
+                                                            setShowDatePicker
+                                                        }
+                                                    >
+                                                        <PopoverTrigger asChild>
+                                                            <span className="cursor-pointer underline decoration-dotted hover:text-primary transition-colors">
+                                                                {displayDate}
+                                                            </span>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-fit p-0 bg-card text-card-foreground border border-border shadow-lg rounded-md">
+                                                            <Calendar
+                                                                mode="single"
+                                                                selected={
+                                                                    task_date
+                                                                        ? new Date(
+                                                                              task_date +
+                                                                                  "T00:00:00"
+                                                                          )
+                                                                        : undefined
+                                                                }
+                                                                onSelect={(
+                                                                    date
+                                                                ) => {
+                                                                    if (
+                                                                        date &&
+                                                                        onDateChange
+                                                                    ) {
+                                                                        onDateChange(
+                                                                            date
+                                                                                .toISOString()
+                                                                                .split(
+                                                                                    "T"
+                                                                                )[0]
+                                                                        );
+                                                                    }
+                                                                    setShowDatePicker(
+                                                                        false
+                                                                    );
+                                                                }}
+                                                                initialFocus
+                                                            />
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                    {!editingTime ? (
+                                                        <span
+                                                            className="cursor-pointer underline decoration-dotted hover:text-primary transition-colors"
+                                                            onClick={() =>
+                                                                setEditingTime(
+                                                                    true
+                                                                )
+                                                            }
+                                                        >
+                                                            {format12HourTime(
+                                                                displayTime
+                                                            )}
+                                                        </span>
+                                                    ) : (
+                                                        <Input
+                                                            type="text"
+                                                            className="w-28 inline-block ml-2 bg-background "
+                                                            value={
+                                                                timeInputValue
+                                                            }
+                                                            placeholder="hh:mm AM/PM"
+                                                            onChange={(e) =>
+                                                                setTimeInputValue(
+                                                                    e.target
+                                                                        .value
+                                                                )
+                                                            }
+                                                            onBlur={() => {
+                                                                setEditingTime(
+                                                                    false
+                                                                );
+                                                                const parsed =
+                                                                    parse12HourInput(
+                                                                        timeInputValue
+                                                                    );
+                                                                if (
+                                                                    parsed &&
+                                                                    onTimeChange
+                                                                ) {
+                                                                    onTimeChange(
+                                                                        parsed
+                                                                    );
+                                                                }
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (
+                                                                    e.key ===
+                                                                    "Enter"
+                                                                ) {
+                                                                    setEditingTime(
+                                                                        false
+                                                                    );
+                                                                    const parsed =
+                                                                        parse12HourInput(
+                                                                            timeInputValue
+                                                                        );
+                                                                    if (
+                                                                        parsed &&
+                                                                        onTimeChange
+                                                                    ) {
+                                                                        onTimeChange(
+                                                                            parsed
+                                                                        );
+                                                                    }
+                                                                }
+                                                            }}
+                                                            autoFocus
+                                                        />
+                                                    )}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                {description && (
+                                    <Textarea
+                                        ref={descriptionRef}
+                                        className="text-sm text-muted-foreground mt-1 w-full resize-none bg-transparent p-0 border-none focus:outline-none focus:ring-0"
+                                        value={descriptionValue}
+                                        onChange={(e) => {
+                                            setDescriptionValue(e.target.value);
+                                            if (descriptionRef.current) {
+                                                descriptionRef.current.style.height =
+                                                    "auto";
+                                                descriptionRef.current.style.height =
+                                                    descriptionRef.current
+                                                        .scrollHeight + "px";
                                             }
-                                            onBlur={() => {
-                                                setEditingTime(false);
-                                                const parsed =
-                                                    parse12HourInput(
-                                                        timeInputValue
-                                                    );
-                                                if (parsed && onTimeChange) {
-                                                    onTimeChange(parsed);
-                                                }
-                                            }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter") {
-                                                    setEditingTime(false);
-                                                    const parsed =
-                                                        parse12HourInput(
-                                                            timeInputValue
-                                                        );
-                                                    if (
-                                                        parsed &&
-                                                        onTimeChange
-                                                    ) {
-                                                        onTimeChange(parsed);
-                                                    }
-                                                }
-                                            }}
-                                            autoFocus
-                                        />
+                                        }}
+                                        onBlur={handleDescriptionBlur}
+                                        onFocus={() =>
+                                            setIsDescriptionFocused(true)
+                                        }
+                                        onKeyDown={handleDescriptionKeyDown}
+                                        style={{
+                                            width: "100%",
+                                            overflow: "hidden",
+                                            minHeight: 0,
+                                        }}
+                                        spellCheck={false}
+                                        rows={1}
+                                    />
+                                )}
+                                <div className="flex gap-2">
+                                    {priority && priority !== "None" && (
+                                        <Badge
+                                            className="mt-2 rounded-small font-mono"
+                                            variant={
+                                                priority === "High"
+                                                    ? "high"
+                                                    : priority === "Medium"
+                                                    ? "medium"
+                                                    : priority === "Low"
+                                                    ? "low"
+                                                    : "none"
+                                            }
+                                        >
+                                            {priority || "None"}
+                                        </Badge>
                                     )}
-                                </span>
+                                    {category && category !== "No Category" && (
+                                        <Badge
+                                            className="mt-2 rounded-full font-mono"
+                                            variant="outline"
+                                        >
+                                            {category || "No Category"}
+                                        </Badge>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <Textarea
-                        ref={descriptionRef}
-                        className="text-sm text-muted-foreground mt-1 w-full resize-none bg-transparent p-0 border-none focus:outline-none focus:ring-0"
-                        value={descriptionValue}
-                        onChange={(e) => {
-                            setDescriptionValue(e.target.value);
-                            if (descriptionRef.current) {
-                                descriptionRef.current.style.height = "auto";
-                                descriptionRef.current.style.height =
-                                    descriptionRef.current.scrollHeight + "px";
-                            }
-                        }}
-                        onBlur={handleDescriptionBlur}
-                        onFocus={() => setIsDescriptionFocused(true)}
-                        onKeyDown={handleDescriptionKeyDown}
-                        style={{
-                            width: "100%",
-                            overflow: "hidden",
-                            minHeight: 0,
-                        }}
-                        spellCheck={false}
-                        rows={1}
-                    />
-                    <div className="flex gap-2">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Badge
-                                    className="mt-2 rounded-small cursor-pointer font-mono"
-                                    variant={
-                                        priority === "High"
-                                            ? "high"
-                                            : priority === "Medium"
-                                            ? "medium"
-                                            : priority === "Low"
-                                            ? "low"
-                                            : "none"
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-48 backdrop-blur-lg bg-neutral-900/10 border border-neutral-300 ">
+                    <ContextMenuItem
+                        className="flex items-center gap-2 "
+                        onClick={() => setEditDialogOpen(true)}
+                    >
+                        <Edit className="h-4 w-4" />
+                        Edit Task
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                        className="flex items-center gap-2"
+                        onClick={() => onDuplicate?.(id)}
+                    >
+                        <Copy className="h-4 w-4" />
+                        Duplicate Task
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <ContextMenuItem className="flex items-center gap-2">
+                                <FolderOpen className="h-4 w-4" />
+                                Category
+                            </ContextMenuItem>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent side="right" align="start">
+                            <DropdownMenuItem
+                                onClick={() => onCategoryChange?.("")}
+                                className={
+                                    !category || category === "No Category"
+                                        ? "bg-blue-100 text-blue-600"
+                                        : ""
+                                }
+                            >
+                                No Category
+                            </DropdownMenuItem>
+                            {categories?.map((cat) => (
+                                <DropdownMenuItem
+                                    key={cat.cat_id}
+                                    onClick={() =>
+                                        onCategoryChange?.(cat.cat_id)
+                                    }
+                                    className={
+                                        category === cat.cat_name
+                                            ? "bg-blue-100 text-blue-600"
+                                            : ""
                                     }
                                 >
-                                    {priority || "None"}
-                                </Badge>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                                <DropdownMenuRadioGroup
-                                    value={priority || "None"}
-                                    onValueChange={(value) => {
-                                        if (onPriorityChange)
-                                            onPriorityChange(
-                                                value === "None" ? "" : value
-                                            );
-                                    }}
-                                >
-                                    <DropdownMenuRadioItem
-                                        value="High"
-                                        className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 focus:text-red-500"
-                                    >
-                                        High
-                                    </DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem
-                                        value="Medium"
-                                        className="text-yellow-700 hover:bg-yellow-500/10 focus:bg-yellow-500/10 focus:text-yellow-700"
-                                    >
-                                        Medium
-                                    </DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem
-                                        value="Low"
-                                        className="text-green-700 hover:bg-green-500/10 focus:bg-green-500/10 focus:text-green-700"
-                                    >
-                                        Low
-                                    </DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="None">
-                                        None
-                                    </DropdownMenuRadioItem>
-                                </DropdownMenuRadioGroup>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        <Badge
-                            className="mt-2 rounded-full font-mono"
-                            variant="outline"
-                        >
-                            {category || "No Category"}
-                        </Badge>
-                    </div>
-                </div>
-            </div>
-        </div>
+                                    {cat.cat_name}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <ContextMenuItem className="flex items-center gap-2">
+                                <AlertTriangle className="h-4 w-4" />
+                                Set Priority
+                            </ContextMenuItem>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent side="right" align="start">
+                            <DropdownMenuItem
+                                onClick={() => onPriorityChange?.("None")}
+                                className={
+                                    !priority || priority === "None"
+                                        ? "bg-blue-100 text-blue-600"
+                                        : ""
+                                }
+                            >
+                                None
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => onPriorityChange?.("Low")}
+                                className={
+                                    priority === "Low"
+                                        ? "bg-blue-100 text-blue-600"
+                                        : ""
+                                }
+                            >
+                                Low
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => onPriorityChange?.("Medium")}
+                                className={
+                                    priority === "Medium"
+                                        ? "bg-blue-100 text-blue-600"
+                                        : ""
+                                }
+                            >
+                                Medium
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => onPriorityChange?.("High")}
+                                className={
+                                    priority === "High"
+                                        ? "bg-blue-100 text-blue-600"
+                                        : ""
+                                }
+                            >
+                                High
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem
+                        className="flex items-center gap-2"
+                        onClick={() => onArchive?.(id)}
+                    >
+                        <Archive className="h-4 w-4" />
+                        Archive Task
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem
+                        className="flex items-center gap-2 text-red-600 focus:text-red-600 focus:bg-red-600/10"
+                        onClick={() => onDelete?.(id)}
+                    >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                        Delete Task
+                    </ContextMenuItem>
+                </ContextMenuContent>
+            </ContextMenu>
+        </>
     );
 };
 

@@ -17,9 +17,16 @@ export const taskService = {
         return data || [];
     },
 
-    async createTask(
-        task: Omit<Task, "id" | "created_at" | "updated_at">
-    ): Promise<Task> {
+    async createTask(task: {
+        task_title: string;
+        task_desc?: string;
+        task_priority?: "High" | "Medium" | "Low" | "None";
+        cat_id?: string;
+        user_id: string;
+        status?: boolean;
+        task_date?: string;
+        task_only_time?: string;
+    }): Promise<Task> {
         const { data, error } = await supabase
             .from("tasks")
             .insert([task])

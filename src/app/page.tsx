@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { EyeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { RiveLoader } from "@/components/ui/rive-loader";
 
 export default function Home() {
     const [isLogin, setIsLogin] = useState(true);
@@ -210,7 +211,11 @@ export default function Home() {
                                     type="submit"
                                     disabled={loading}
                                 >
-                                    {loading ? "Loading..." : "Login"}
+                                    {loading ? (
+                                        <RiveLoader className="w-10 h-10" />
+                                    ) : (
+                                        "Login"
+                                    )}
                                 </button>
                             </form>
                             <p className="text-center text-sm text-muted-foreground">
@@ -344,7 +349,11 @@ export default function Home() {
                                     disabled={loading}
                                     className="w-full"
                                 >
-                                    {loading ? "Loading..." : "Sign Up"}
+                                    {loading ? (
+                                        <RiveLoader className="w-10 h-10" />
+                                    ) : (
+                                        "Sign Up"
+                                    )}
                                 </Button>
                             </form>
                             <p className="text-center text-sm text-muted-foreground">

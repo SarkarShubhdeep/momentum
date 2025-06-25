@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
+import { RiveLoader } from "@/components/ui/rive-loader";
 
 // Define Profile type locally to avoid import error
 export interface Profile {
@@ -162,7 +163,11 @@ export default function UserProfile({
                                     className="px-4 py-2 text-sm font-medium text-white bg-black rounded-md hover:bg-black/90 disabled:opacity-50"
                                     disabled={saving}
                                 >
-                                    {saving ? "Saving..." : "Save Changes"}
+                                    {saving ? (
+                                        <RiveLoader className="w-8 h-8" />
+                                    ) : (
+                                        "Save Changes"
+                                    )}
                                 </button>
                             </div>
                         </form>

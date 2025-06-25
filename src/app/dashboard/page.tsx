@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import LayoutGrid from "@/components/LayoutGrid";
 import UserProfile from "./UserProfile";
+import TasksNavbar from "./TasksNavbar";
 import {
     Clock,
     Filter,
@@ -29,6 +30,8 @@ import { toast, Toaster } from "sonner";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import AddTaskContainer from "./AddTaskContainer";
+import { RiveLoader } from "@/components/ui/rive-loader";
 
 interface Profile {
     id: string;
@@ -48,6 +51,7 @@ export default function Dashboard() {
     const [isSmallScreen, setIsSmallScreen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [showTaskMenu, setShowTaskMenu] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -252,27 +256,14 @@ export default function Dashboard() {
         taskId: string,
         newPriority: string
     ) => {
-        // Accept 'None' as a value for clearing priority
-        const validPriorities: TaskPriority[] = [
-            "High",
-            "Medium",
-            "Low",
-            "None",
-        ];
-        const priorityValue = validPriorities.includes(
-            newPriority as TaskPriority
-        )
-            ? (newPriority as TaskPriority)
-            : "None";
         try {
-            // Send to backend as task_priority, use 'None' to clear
             await taskService.updateTask(taskId, {
-                task_priority: priorityValue,
+                task_priority: newPriority as TaskPriority,
             });
             setTasks((prevTasks) =>
                 prevTasks.map((task) =>
                     task.id === taskId
-                        ? { ...task, priority: priorityValue }
+                        ? { ...task, priority: newPriority as TaskPriority }
                         : task
                 )
             );
@@ -282,10 +273,130 @@ export default function Dashboard() {
         }
     };
 
+    const handleCategoryChange = async (
+        taskId: string,
+        newCategory: string
+    ) => {
+        try {
+            const updateData = newCategory
+                ? { cat_id: newCategory }
+                : { cat_id: null };
+            await taskService.updateTask(taskId, updateData as any);
+
+            const categoryObj = categories.find(
+                (cat) => cat.cat_id === newCategory
+            );
+            setTasks((prevTasks) =>
+                prevTasks.map((task) =>
+                    task.id === taskId
+                        ? {
+                              ...task,
+                              cat_id: newCategory ? newCategory : undefined,
+                              category: categoryObj
+                                  ? categoryObj.cat_name
+                                  : "No Category",
+                          }
+                        : task
+                )
+            );
+            toast("Category updated!");
+        } catch (error) {
+            console.error("Error updating task category:", error);
+        }
+    };
+
+    const handleDuplicateTask = async (taskId: string) => {
+        try {
+            const taskToDuplicate = tasks.find((task) => task.id === taskId);
+            if (!taskToDuplicate) return;
+
+            const duplicateData = {
+                task_title: `${taskToDuplicate.title} (Copy)`,
+                task_desc: taskToDuplicate.description,
+                task_priority: taskToDuplicate.priority,
+                cat_id: taskToDuplicate.cat_id,
+                user_id: user?.id || "",
+                status: false,
+                task_date: taskToDuplicate.task_date,
+                task_only_time: taskToDuplicate.task_only_time,
+            };
+
+            const newTask = await taskService.createTask(duplicateData);
+
+            // Map the new task to match the expected format
+            const catId = newTask.cat_id;
+            const categoryObj = categories.find((cat) => cat.cat_id === catId);
+            const mappedTask = {
+                ...newTask,
+                title: newTask.task_title,
+                description: newTask.task_desc || "",
+                priority: newTask.task_priority,
+                time: newTask.task_time || "",
+                task_date: newTask.task_date,
+                task_only_time: newTask.task_only_time,
+                category: categoryObj ? categoryObj.cat_name : "No Category",
+            };
+
+            setTasks((prevTasks) => [mappedTask, ...prevTasks]);
+            toast("Task duplicated successfully!");
+        } catch (error) {
+            console.error("Error duplicating task:", error);
+            toast.error("Failed to duplicate task");
+        }
+    };
+
+    const handleArchiveTask = async (taskId: string) => {
+        try {
+            // For now, we'll just mark it as completed (archived)
+            await taskService.updateTaskStatus(taskId, true);
+            setTasks((prevTasks) =>
+                prevTasks.map((task) =>
+                    task.id === taskId ? { ...task, status: true } : task
+                )
+            );
+            toast("Task archived!");
+        } catch (error) {
+            console.error("Error archiving task:", error);
+        }
+    };
+
+    const handleDeleteTask = async (taskId: string) => {
+        try {
+            await taskService.deleteTask(taskId);
+            setTasks((prevTasks) =>
+                prevTasks.filter((task) => task.id !== taskId)
+            );
+            toast("Task deleted successfully!");
+        } catch (error) {
+            console.error("Error deleting task:", error);
+            toast.error("Failed to delete task");
+        }
+    };
+
+    // Handler to update categories and also update tasks' category name in real time
+    const handleCategoriesUpdate = (updatedCategories: Category[]) => {
+        setCategories(updatedCategories);
+        setTasks((prevTasks) =>
+            prevTasks.map((task) => {
+                const catId = task.cat_id;
+                const updatedCat = updatedCategories.find(
+                    (cat) => cat.cat_id === catId
+                );
+                if (updatedCat) {
+                    return {
+                        ...task,
+                        category: updatedCat.cat_name,
+                    };
+                }
+                return task;
+            })
+        );
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-                <div className="text-lg">Loading...</div>
+                <RiveLoader className="w-50 h-50" />
             </div>
         );
     }
@@ -323,59 +434,60 @@ export default function Dashboard() {
                     </div>
                 )}
                 <div className="flex gap-4 h-full">
-                    <div className="flex justify-between items-center min-h-full w-[400px] max-h-[calc(100vh-40px)] 0 border-1 border-neutral-400 rounded-xl overflow-hidden">
+                    <div className="flex justify-between items-center min-h-full w-[400px] max-h-[calc(100vh-40px)] 0  rounded-xl overflow-hidden">
                         <div className="relative h-full w-full">
-                            <nav className="absolute top-0 left-0 right-0 border-b-1 border-neutral-400 h-[120px] ps-6 pe-2 w-full bg-white/20 backdrop-blur-sm z-10 ">
-                                <div className="max-w-full mx-auto h-full">
-                                    <div className="flex justify-between h-full items-center">
-                                        <h1 className="text-4xl font-semibold">
-                                            Tasks
-                                        </h1>
-                                        <div className="flex items-center gap-1">
-                                            <Button
-                                                variant="outline"
-                                                className="bg-white/20 shadow-none py-4 pe-4 ps-5 rounded-full h-14 uppercase border-[1.5px] border-transparent hover:border-neutral-400"
-                                            >
-                                                Sort
-                                                <Image
-                                                    src="/icons/sort.svg"
-                                                    alt="menu-icon"
-                                                    width={24}
-                                                    height={24}
-                                                />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                className="shadow-none rounded-full h-14 w-14 p-0 border-[1.5px] border-transparent hover:border-neutral-400"
-                                            >
-                                                <Image
-                                                    src="/icons/menu.svg"
-                                                    alt="menu-icon"
-                                                    width={32}
-                                                    height={32}
-                                                />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </nav>
+                            <TasksNavbar
+                                showTaskMenu={showTaskMenu}
+                                setShowTaskMenu={setShowTaskMenu}
+                                categories={categories}
+                                onCategoriesUpdate={handleCategoriesUpdate}
+                                userId={user?.id || ""}
+                            />
+                            <AddTaskContainer
+                                categories={categories}
+                                userId={user?.id || ""}
+                                onAddTask={(newTask: any) => {
+                                    // Map the new task to match the expected format
+                                    const catId = newTask.cat_id;
+                                    const categoryObj = categories.find(
+                                        (cat) => cat.cat_id === catId
+                                    );
+                                    const mappedTask = {
+                                        ...newTask,
+                                        title: newTask.task_title ?? "No Title",
+                                        description: newTask.task_desc ?? "",
+                                        priority: newTask.task_priority,
+                                        time: newTask.task_time ?? "",
+                                        task_date: newTask.task_date,
+                                        task_only_time: newTask.task_only_time,
+                                        category: categoryObj
+                                            ? categoryObj.cat_name
+                                            : "No Category",
+                                    };
+                                    setTasks((prevTasks) => [
+                                        mappedTask,
+                                        ...prevTasks,
+                                    ]);
+                                }}
+                                onCategoriesUpdate={handleCategoriesUpdate}
+                            />
                             <ScrollArea className="h-full ">
-                                <div className="space-y-2 py-[124px]">
+                                <div className="space-y-2 py-[86px]">
                                     {tasks.map((task) => (
                                         <TodoCard
                                             key={task.id}
                                             id={task.id}
                                             title={task.title || "No Title"}
-                                            description={
-                                                task.description ||
-                                                "No Description"
-                                            }
+                                            description={task.description || ""}
                                             priority={task.priority}
-                                            time={task.time}
-                                            task_date={task.task_date}
-                                            task_only_time={task.task_only_time}
+                                            time={task.time || ""}
+                                            task_date={task.task_date || ""}
+                                            task_only_time={
+                                                task.task_only_time || ""
+                                            }
                                             category={task.category}
                                             status={task.status}
+                                            categories={categories}
                                             onStatusChange={(checked) =>
                                                 handleStatusChange(
                                                     task.id,
@@ -413,6 +525,21 @@ export default function Dashboard() {
                                                     task.id,
                                                     newPriority
                                                 )
+                                            }
+                                            onCategoryChange={(newCategory) =>
+                                                handleCategoryChange(
+                                                    task.id,
+                                                    newCategory
+                                                )
+                                            }
+                                            onDuplicate={(taskId) =>
+                                                handleDuplicateTask(taskId)
+                                            }
+                                            onArchive={(taskId) =>
+                                                handleArchiveTask(taskId)
+                                            }
+                                            onDelete={(taskId) =>
+                                                handleDeleteTask(taskId)
                                             }
                                         />
                                     ))}
